@@ -1,0 +1,65 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: lambda-response-stream-sample
+
+Resources:
+  ChatFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: SSMOpenAIApiKeyRead
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - "ssm:GetParameter"
+                Resource:
+                  - !Sub "arn:aws:ssm:*:${AWS::AccountId}:parameter/openai/api-key"
+      Path: "/"
+
+  ChatFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role: !GetAtt ChatFunctionRole.Arn
+      CodeUri: chat/dist
+      Handler: app.lambdaHandler
+      Runtime: nodejs18.x
+      Timeout: 60
+      Architectures:
+        - x86_64
+      FunctionUrlConfig:
+        AuthType: NONE
+        InvokeMode: RESPONSE_STREAM # LambdaレスポンスストリームON
+        Cors:
+          AllowCredentials: true
+          AllowMethods: ["POST"]
+          AllowOrigins: ["*"]
+          AllowHeaders: ["*"]
+#    Metadata: # Manage esbuild properties
+#      BuildMethod: esbuild
+#      BuildProperties:
+#        Minify: true
+#        Target: "es2022"
+#        Sourcemap: true
+#        EntryPoints:
+#          - app.ts
+
+Outputs:
+  ChatApi:
+    Description: "Chat Lambda Function URL"
+    Value: !GetAtt ChatFunctionUrl.FunctionUrl
+  ChatFunction:
+    Description: "Chat Lambda Function ARN"
+    Value: !GetAtt ChatFunction.Arn
